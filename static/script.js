@@ -19,12 +19,16 @@ function sendData() {
   document.querySelector(".radio-group").style.display = "none";
   document.querySelector(".start-button").style.display = "none";
   document.getElementById("responseArea").innerText = "⏳ Generating your quiz...";
+  
 
-  fetch("http://127.0.0.1:5000/api", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ topic, count: selectedCount })
-  })
+  const backendURL = window.location.origin + "/api";
+
+fetch(backendURL, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ topic, count: selectedCount })
+})
+
     .then(response => response.json())
     .then(data => {
       quizData = data.output;
