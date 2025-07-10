@@ -3,14 +3,20 @@ from flask_cors import CORS
 import google.generativeai as genai
 import json
 import re
+import os
+from dotenv import load_dotenv
 
+# Initialize Flask app and enable CORS
 app = Flask(__name__)
 CORS(app)
 
-# 🔐 Replace with your actual Gemini API key
-genai.configure(api_key="AIzaSyBM0BwG21JOYTo0UNbx8dBRVZggJQTUyeg")  # Example: "AIzaSy..."
+# Load .env variables
+load_dotenv()
 
-# Use Gemini 1.5 Flash
+# Configure Gemini with API key from .env
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
+# Load Gemini model
 model = genai.GenerativeModel("models/gemini-1.5-flash")
 
 @app.route("/")
@@ -23,16 +29,15 @@ def generate_quiz():
     topic = data.get("topic", "")
     count = int(data.get("count", 10))
 
-    # 🧠 Prompt to generate clean JSON
     prompt = (
         f"Generate {count} multiple-choice questions (MCQs) on the topic '{topic}'. "
         "Return only valid JSON (do not include markdown, ```json, or explanation). "
         "The output must be a list of objects in this format:\n"
         "[\n"
         "{\n"
-        '  "question": "What is ...?",\n'
-        '  "options": ["A", "B", "C", "D"],\n'
-        '  "answer": "A"\n'
+        '  \"question\": \"What is ...?\",\n'
+        '  \"options\": [\"A\", \"B\", \"C\", \"D\"],\n'
+        '  \"answer\": \"A\"\n'
         "},\n"
         "...]\n"
         "Only return the raw JSON array."
@@ -42,21 +47,24 @@ def generate_quiz():
         response = model.generate_content(prompt)
         raw_text = response.text.strip()
 
-        # 🧼 Remove ```json and ```
+        # Remove ```json or ``` if present
         cleaned_text = re.sub(r"```json|```", "", raw_text).strip()
 
-        # 🪵 Debug log
+        # Debug output
         print("Gemini Raw Output:\n", raw_text)
 
-        # Parse the JSON safely
+        # Parse the cleaned JSON string
         quiz_json = json.loads(cleaned_text)
 
-        # Validate it's a list of questions
-        if isinstance(quiz_json, list) and all('question' in q and 'options' in q and 'answer' in q for q in quiz_json):
+        # Validate the format
+        if isinstance(quiz_json, list) and all(
+            'question' in q and 'options' in q and 'answer' in q for q in quiz_json
+        ):
             return jsonify({"output": quiz_json})
         else:
             return jsonify({"output": [], "error": "Invalid JSON structure returned from Gemini."})
     except Exception as e:
+        print("Error occurred:", e)
         return jsonify({"output": [], "error": str(e)})
 
 if __name__ == "__main__":
